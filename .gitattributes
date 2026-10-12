@@ -1,0 +1,5 @@
+# Code runs on the Pi (Linux): always use LF line endings
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.bdf text eol=lf

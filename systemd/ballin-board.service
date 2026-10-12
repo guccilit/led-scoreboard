@@ -1,0 +1,20 @@
+[Unit]
+Description=LED Sports Scoreboard
+# Start as early as possible in boot (before networking) so the splash shows fast.
+DefaultDependencies=no
+After=local-fs.target
+Before=sysinit.target
+# Deliberately NOT stopped at the start of shutdown: it keeps showing "SAFE TO UNPLUG"
+# until the very end of shutdown, when systemd stops all remaining processes.
+
+[Service]
+Type=simple
+WorkingDirectory=/home/dacino/ballin-board
+ExecStart=/opt/ballin-board/venv/bin/python -m ballin
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=2
+TimeoutStopSec=5
+
+[Install]
+WantedBy=sysinit.target

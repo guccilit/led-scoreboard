@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Board Photos</title>
+<link rel="manifest" href="/photos/manifest.json">
+<link rel="apple-touch-icon" href="/photos/icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Board Photos">
+<meta name="theme-color" content="#0b0d14">
+<style>
+  :root { --bg: #0b0d14; --card: #151925; --line: #2a2f40; --text: #eef0f6; --dim: #9aa0b4; --gold: #ffc93c; --good: #36d07a; --bad: #ff5a5a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.4 -apple-system, system-ui, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 18px 16px 40px; }
+  .brand { text-align: center; font-weight: 900; letter-spacing: .06em; font-size: 14px; color: var(--gold); }
+  h1 { text-align: center; font-size: 26px; margin: 4px 0 18px; }
+  .big { display: block; width: 100%; border: 0; border-radius: 16px; padding: 18px; font-size: 20px; font-weight: 800;
+         background: var(--gold); color: #1a1200; cursor: pointer; text-align: center; }
+  .big:disabled { opacity: .5; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; margin-top: 16px; }
+  .panel { position: relative; width: 100%; aspect-ratio: 2 / 1; background: #000; border-radius: 10px; overflow: hidden;
+           touch-action: none; cursor: grab; }
+  .panel canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+  .panel::after { content: ""; position: absolute; inset: 0; pointer-events: none;   /* LED dots */
+                  background: radial-gradient(circle, transparent 55%, rgba(0,0,0,.75) 75%); background-size: calc(100% / 64) calc(100% / 32); }
+  .hint { color: var(--dim); font-size: 14px; text-align: center; margin: 8px 0 0; }
+  .label { font-weight: 700; margin: 18px 0 8px; }
+  .seg { display: flex; gap: 8px; }
+  .seg button { flex: 1; border: 2px solid var(--line); background: transparent; color: var(--text); border-radius: 14px;
+                padding: 14px 8px; font-size: 16px; font-weight: 700; }
+  .seg button.on { border-color: var(--gold); background: rgba(255,201,60,.12); color: var(--gold); }
+  .seg small { display: block; font-weight: 400; color: var(--dim); font-size: 13px; margin-top: 2px; }
+  input[type=range] { width: 100%; accent-color: var(--gold); height: 34px; }
+  .time { text-align: center; font-size: 24px; font-weight: 800; color: var(--gold); }
+  .row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .grow { flex: 1; }
+  .off { border: 0; background: var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 14px; font-weight: 700; }
+  .done { text-align: center; }
+  .done .tick { font-size: 54px; }
+  .muted { color: var(--dim); }
+  #msg { text-align: center; margin-top: 12px; min-height: 1.4em; }
+  .promo { margin-top: 22px; padding: 22px 18px 18px; border-radius: 22px; text-align: center; position: relative;
+           background: radial-gradient(120% 90% at 50% 0%, #2a2210 0%, var(--card) 60%); border: 1px solid #4a3a12; }
+  .promo-kicker { font-size: 12px; font-weight: 900; letter-spacing: .25em; color: var(--gold); }
+  .promo-head { font-size: 30px; font-weight: 900; line-height: 1.05; margin: 8px 0 16px; letter-spacing: -.01em; }
+  .promo-head span { background: linear-gradient(180deg, #ffe63c, #ff6a00); -webkit-background-clip: text;
+                     background-clip: text; color: transparent; }
+  .steps { display: grid; gap: 8px; text-align: left; }
+  .step { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,.04); border-radius: 12px;
+          padding: 10px 12px; font-size: 15px; }
+  .step b { width: 66px; color: var(--dim); font-weight: 700; font-size: 13px; }
+  .step .key { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px;
+               background: var(--gold); color: #1a1200; font-weight: 900; }
+  .step i { color: var(--gold); font-style: normal; font-weight: 900; }
+  .wifi { margin: 14px 0; font-size: 14px; color: var(--dim); }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">LED SCOREBOARD</div>
+  <h1>Send a photo to the board</h1>
+  <p class="hint" style="margin:-8px 0 18px;font-size:16px">Want to get someone's attention? Pop a photo up on the
+    scoreboard: mixed in with the scores, or all by itself.</p>
+
+  <div id="pick">
+    <label class="big" for="camera">📸 Take a photo</label>
+    <label class="big" for="file" style="margin-top:10px;background:var(--line);color:var(--text)">🖼️ Choose from gallery</label>
+    <input type="file" id="camera" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="file" accept="image/*" style="display:none">
+  </div>
+
+  <div id="setup" class="card" style="display:none">
+    <div class="panel" id="panel"><canvas id="led" width="64" height="32"></canvas></div>
+    <p class="hint">This is how it will look on the board. Drag to move it.</p>
+    <input type="range" id="zoom" min="1" max="4" step="0.05" value="1" aria-label="Zoom">
+    <p class="hint" style="margin-top:0">Zoom</p>
+
+    <div class="label">How should it show?</div>
+    <div class="seg" id="mode">
+      <button data-mode="slides" class="on">Add to the slides<small>mixed in with the scores</small></button>
+      <button data-mode="only">Show only this<small>nothing else on the board</small></button>
+    </div>
+
+    <div class="label">For how long?</div>
+    <div class="time" id="timeLabel"></div>
+    <input type="range" id="time" min="0" max="17" step="1" value="7">
+
+    <button class="big" id="send" style="margin-top:18px">Put it on the board</button>
+    <button class="off" id="cancel" style="display:block;margin:12px auto 0">Choose a different photo</button>
+    <div id="msg"></div>
+  </div>
+
+  <div id="done" class="card done" style="display:none">
+    <div class="tick">✅</div>
+    <h2 style="margin:4px 0">It's on the board!</h2>
+    <p class="muted" id="doneText"></p>
+    <button class="big" id="again" style="margin-top:12px">Add another photo</button>
+  </div>
+
+  <div class="card" id="nowCard" style="display:none">
+    <div style="font-weight:800;margin-bottom:4px">On the board now</div>
+    <div id="now"></div>
+  </div>
+
+  <div class="promo">
+    <div class="promo-kicker">KEEP IT HANDY</div>
+    <div class="promo-head">One tap.<br><span>Straight to the board.</span></div>
+    <div class="steps">
+      <div class="step"><b>iPhone</b><span class="key">⬆︎</span>Share<i>→</i>Add to Home Screen</div>
+      <div class="step"><b>Android</b><span class="key">⋮</span>Menu<i>→</i>Add to Home screen</div>
+    </div>
+    <div class="wifi">🏠 Home WiFi only. Just your crew can post.</div>
+    <button class="big" id="share">Share with the house</button>
+  </div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const MINUTES = [1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720, 960, 1200, 1440];
+let img = null, file = null, mode = "slides", cx = 0, cy = 0, zoom = 1;
+const led = $("#led"), ctx = led.getContext("2d");
+
+function minutesLabel(m) {
+  if (m < 60) return m + (m === 1 ? " minute" : " minutes");
+  const h = m / 60;
+  return (Number.isInteger(h) ? h : h.toFixed(1)) + (h === 1 ? " hour" : " hours");
+}
+function leftLabel(s) {
+  const m = Math.ceil(s / 60);
+  if (m < 60) return m + " min left";
+  return Math.floor(m / 60) + " h " + (m % 60) + " min left";
+}
+function cropBox() {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const cw = Math.min(w, h * 2) / zoom, ch = cw / 2;
+  cx = Math.min(Math.max(cx, cw / 2), w - cw / 2);
+  cy = Math.min(Math.max(cy, ch / 2), h - ch / 2);
+  return [cx - cw / 2, cy - ch / 2, cw, ch];
+}
+function draw() {
+  const [sx, sy, cw, ch] = cropBox();
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, 64, 32);
+  ctx.drawImage(img, sx, sy, cw, ch, 0, 0, 64, 32);
+  boost();
+}
+function boost() {
+  // Maximize color for the LEDs: stretch to the full range (ignoring the extreme 1%), then
+  // richer saturation. The preview shows exactly what the board gets.
+  const d = ctx.getImageData(0, 0, 64, 32), px = d.data, vals = [];
+  for (let i = 0; i < px.length; i += 4) vals.push(px[i], px[i + 1], px[i + 2]);
+  vals.sort((a, b) => a - b);
+  const lo = vals[Math.floor(vals.length * 0.01)], hi = Math.max(lo + 1, vals[Math.floor(vals.length * 0.99)]);
+  for (let i = 0; i < px.length; i += 4) {
+    let r = (px[i] - lo) * 255 / (hi - lo), g = (px[i + 1] - lo) * 255 / (hi - lo), b = (px[i + 2] - lo) * 255 / (hi - lo);
+    const gray = 0.3 * r + 0.59 * g + 0.11 * b, k = 1.55;
+    px[i] = gray + (r - gray) * k; px[i + 1] = gray + (g - gray) * k; px[i + 2] = gray + (b - gray) * k;   // clamped by the canvas
+  }
+  ctx.putImageData(d, 0, 0);
+}
+$("#camera").onchange = $("#file").onchange = e => {
+  file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  img = new Image();
+  img.onload = () => {
+    zoom = 1; $("#zoom").value = 1;
+    cx = img.naturalWidth / 2;
+    cy = img.naturalHeight > img.naturalWidth ? img.naturalHeight * 0.38 : img.naturalHeight / 2;   // portraits: faces sit high
+    draw();
+    $("#pick").style.display = "none"; $("#done").style.display = "none"; $("#setup").style.display = "";
+    $("#msg").textContent = "";
+  };
+  img.onerror = () => alert("Sorry, that photo couldn't be opened. Try another one.");
+  img.src = url;
+};
+$("#zoom").oninput = () => { zoom = +$("#zoom").value; draw(); };
+(function drag() {
+  let last = null;
+  const panel = $("#panel");
+  panel.onpointerdown = e => { last = [e.clientX, e.clientY]; panel.setPointerCapture(e.pointerId); };
+  panel.onpointermove = e => {
+    if (!last || !img) return;
+    const [, , cw] = cropBox(), k = cw / panel.clientWidth;
+    cx -= (e.clientX - last[0]) * k; cy -= (e.clientY - last[1]) * k;
+    last = [e.clientX, e.clientY]; draw();
+  };
+  panel.onpointerup = panel.onpointercancel = () => { last = null; };
+})();
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll("#mode button").forEach(x => x.classList.toggle("on", x === b));
+});
+const showTime = () => $("#timeLabel").textContent = minutesLabel(MINUTES[+$("#time").value]);
+$("#time").oninput = showTime; showTime();
+const resetPick = () => { $("#file").value = ""; $("#camera").value = ""; $("#pick").style.display = ""; };
+$("#cancel").onclick = () => { $("#setup").style.display = "none"; resetPick(); };
+$("#again").onclick = () => { $("#done").style.display = "none"; resetPick(); };
+
+$("#send").onclick = async () => {
+  const btn = $("#send"); btn.disabled = true;
+  const minutes = MINUTES[+$("#time").value];
+  try {
+    $("#msg").textContent = "Sending…";
+    let r = await fetch("/api/photos", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({panel: led.toDataURL("image/png"), mode, minutes})});
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "the board didn't answer");
+    const {id} = await r.json();
+    $("#msg").textContent = "Almost done…";
+    await fetch("/api/photos/" + id + "/original?name=" + encodeURIComponent(file.name || "photo.jpg"),
+                {method: "POST", body: file}).catch(() => {});
+    const ends = new Date(Date.now() + minutes * 60000);
+    $("#doneText").textContent = (mode === "only" ? "Showing only this photo" : "Mixed in with the slides") +
+      " until " + ends.toLocaleTimeString([], {hour: "numeric", minute: "2-digit"}) +
+      ". When time's up, it's permanently wiped from the board.";
+    $("#setup").style.display = "none"; $("#done").style.display = "";
+    refresh();
+  } catch (e) {
+    $("#msg").textContent = "Couldn't send it: " + e.message + ". Are you on the home WiFi?";
+  }
+  btn.disabled = false;
+};
+
+let shown = new Set();
+async function refresh() {
+  try {
+    const d = await (await fetch("/api/photos")).json();
+    const box = $("#now"); box.innerHTML = "";
+    const ids = new Set(d.active.map(p => p.id));
+    for (const id of shown) if (!ids.has(id)) {
+      const row = document.createElement("div"); row.className = "row muted";
+      row.textContent = "Time's up: the photo is permanently wiped from the board."; box.appendChild(row);
+    }
+    d.active.forEach((p, i) => {
+      const row = document.createElement("div"); row.className = "row";
+      row.innerHTML = `<span class="grow"></span><button class="off">Take it off now</button>`;
+      row.querySelector(".grow").textContent = `Photo ${i + 1} · ${p.mode === "only" ? "only this" : "in the slides"} · ${leftLabel(p.left_s)}`;
+      row.querySelector("button").onclick = async () => {
+        await fetch("/api/photos/" + p.id + "/stop", {method: "POST"}); refresh();
+      };
+      box.appendChild(row);
+    });
+    shown = ids;
+    $("#nowCard").style.display = box.children.length ? "" : "none";
+  } catch (e) {}
+}
+refresh(); setInterval(refresh, 30000);
+$("#share").onclick = async () => {
+  // Always share the photo-only door (port 8080), never the settings address
+  const url = "http://" + location.hostname + ":8080";
+  try {
+    if (navigator.share) { await navigator.share({title: "Send a photo to the board", url}); return; }
+    await navigator.clipboard.writeText(url);
+    $("#share").textContent = "Link copied ✓";
+  } catch (e) { if (e.name !== "AbortError") $("#share").textContent = url; }
+};
+</script>
+</body>
+</html>

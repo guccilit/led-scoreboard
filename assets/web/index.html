@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Scoreboard Settings</title>
+<style>
+  :root {
+    --bg: #0b0d12; --card: #151923; --card2: #1c2130; --line: #262c3c;
+    --text: #eef0f6; --dim: #9aa2b6; --gold: #ffb914; --orange: #ff6a00;
+    --blue: #3d7bff; --good: #2ee66b; --bad: #ff4d4d; --r: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 48px; }
+  header { text-align: center; padding: 18px 0 8px; }
+  .brand-small { letter-spacing: .32em; font-size: 12px; color: var(--dim); font-weight: 700; }
+  .brand { font-size: 38px; font-weight: 900; letter-spacing: .04em; margin: 2px 0;
+           background: linear-gradient(180deg, #ffe63c, #ff4600); -webkit-background-clip: text;
+           background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 #6e1e00); }
+  .brand-board { color: var(--blue); font-weight: 800; letter-spacing: .3em; font-size: 15px; }
+  .chips { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
+  .chip { background: var(--card); border: 1px solid var(--line); border-radius: 99px;
+          padding: 5px 12px; font-size: 13px; color: var(--dim); }
+  .chip b { color: var(--text); font-weight: 600; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: var(--r);
+            padding: 18px; margin-top: 16px; }
+  h2 { margin: 0 0 4px; font-size: 18px; }
+  /* Sections are folders: tap the title to open or close (open ones are remembered) */
+  main > section { padding: 0; }
+  main > section > h2 { margin: 0; padding: 18px; cursor: pointer; display: flex; align-items: center;
+                        justify-content: space-between; user-select: none; -webkit-tap-highlight-color: transparent; }
+  main > section > h2::after { content: ""; width: 9px; height: 9px; border-right: 2.5px solid var(--dim);
+                               border-bottom: 2.5px solid var(--dim); transform: rotate(45deg); margin: -4px 4px 0 12px;
+                               transition: transform .2s; flex: none; }
+  main > section.open > h2::after { transform: rotate(-135deg); margin-top: 4px; }
+  main > section > .fold { display: none; padding: 0 18px 18px; }
+  main > section.open > .fold { display: block; }
+  main > section > h2 { -webkit-touch-callout: none; -webkit-user-select: none; }
+  main > section.dragging { transform: scale(1.03); box-shadow: 0 10px 30px rgba(0,0,0,.6); border-color: var(--gold);
+                            position: relative; z-index: 5; transition: transform .12s; }
+  body.reordering main > section:not(.dragging) { opacity: .75; }
+  .steps-list { padding-left: 22px; margin: 0 0 10px; }
+  .steps-list li { margin-bottom: 6px; }
+  .folder-tip { color: var(--dim); font-size: 12px; text-align: center; margin: 14px 0 -6px; }
+  .hint { color: var(--dim); font-size: 14px; margin: 0 0 14px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+  .row + .row { border-top: 1px solid var(--line); }
+  .grow { flex: 1; min-width: 0; }
+  label.lbl { font-weight: 600; display: block; }
+  .team-logo { width: 44px; height: 44px; object-fit: contain; background: #000; image-rendering: pixelated;
+               border-radius: 12px; padding: 5px; flex: none; }
+  select, input[type=text], input[type=password], input[type=time], input[type=date], input[type=number] {
+    width: 100%; background: var(--card2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 12px; padding: 12px; font-size: 16px; appearance: none; -webkit-appearance: none; }
+  select { background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%),
+           linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+           background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+           background-size: 6px 6px; background-repeat: no-repeat; padding-right: 36px; }
+  input[type=range] { width: 100%; accent-color: var(--gold); height: 32px; }
+  .scale { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px; margin-top: -4px; }
+  .value { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--gold); min-width: 3ch; text-align: right; }
+  .seg { display: flex; background: var(--card2); border-radius: 12px; padding: 4px; gap: 4px; }
+  .seg button { flex: 1; border: 0; background: transparent; color: var(--dim); padding: 10px;
+                border-radius: 9px; font-size: 15px; font-weight: 600; }
+  .seg button.on { background: var(--gold); color: #1a1200; }
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button { width: 46px; height: 46px; border-radius: 12px; border: 1px solid var(--line);
+                    background: var(--card2); color: var(--text); font-size: 22px; font-weight: 700; }
+  .stepper .num { font-size: 28px; font-weight: 800; min-width: 3ch; text-align: center; font-variant-numeric: tabular-nums; }
+  .switch { position: relative; width: 52px; height: 32px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; background: var(--line); border-radius: 99px; transition: .2s; }
+  .switch span:before { content: ""; position: absolute; width: 26px; height: 26px; left: 3px; top: 3px;
+                        background: #fff; border-radius: 50%; transition: .2s; }
+  .switch input:checked + span { background: var(--good); }
+  .switch input:checked + span:before { transform: translateX(20px); }
+  .times { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  .times small { color: var(--dim); display: block; margin-bottom: 4px; }
+  .times.off { opacity: .4; pointer-events: none; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0;
+         border-radius: 12px; padding: 12px 16px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .btn.primary { background: var(--gold); color: #1a1200; }
+  .btn.ghost { background: var(--card2); color: var(--text); border: 1px solid var(--line); }
+  .btn.full { width: 100%; }
+  .btn:disabled { opacity: .5; }
+  .event { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .event:first-child { border-top: 0; }
+  .event .icon { font-size: 24px; width: 32px; text-align: center; }
+  .event .del { background: transparent; border: 0; color: var(--bad); font-size: 22px; padding: 6px 10px; }
+  .addform { display: grid; gap: 10px; margin-top: 12px; padding-top: 14px; border-top: 1px dashed var(--line); }
+  .net { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-top: 1px solid var(--line); cursor: pointer; }
+  .net:first-child { border-top: 0; }
+  .bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; }
+  .bars i { width: 4px; background: var(--line); border-radius: 1px; }
+  .bars i.on { background: var(--good); }
+  .empty { color: var(--dim); text-align: center; padding: 10px 0; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 120px); background: var(--good);
+           color: #04210d; font-weight: 800; padding: 10px 18px; border-radius: 99px; transition: transform .25s;
+           box-shadow: 0 6px 24px rgba(0,0,0,.4); z-index: 9; }
+  #toast.show { transform: translate(-50%, 0); }
+  #toast.err { background: var(--bad); color: #fff; }
+  dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: var(--r);
+           width: min(92vw, 420px); padding: 20px; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  footer { color: var(--dim); text-align: center; font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="setupBanner" style="display:none;background:var(--gold);color:#1a1200;border-radius:var(--r);padding:14px 16px;margin-top:8px;font-weight:700">
+    👋 Let's get the board online: pick your home WiFi below and enter its password.
+  </div>
+  <header>
+    <div class="brand-small">LED</div>
+    <div class="brand">SCOREBOARD</div>
+    <div class="brand-board">— SETTINGS —</div>
+    <div class="chips" id="chips"></div>
+    <p class="hint" style="margin:8px 0 0;font-size:12px">Board temperature is the processor inside: under 70°C (158°F) is normal.</p>
+  </header>
+  <p class="folder-tip">Tip: press and hold a folder's title to move it.</p>
+
+  <section>
+    <h2>Favorite teams</h2>
+    <p class="hint">The board follows these teams: live games, results, schedules and standings. Follow as many as you like; the top team in each league shows first (use ▲ to reorder).</p>
+    <div id="favorites"></div>
+  </section>
+
+  <section>
+    <h2>Display</h2>
+    <div class="row" style="display:block">
+      <div class="row" style="padding:0"><label class="lbl grow">Brightness</label><span class="value" id="brightnessVal"></span></div>
+      <input type="range" id="brightness" min="5" max="100" step="1">
+    </div>
+    <div class="row" style="display:block">
+      <div class="row" style="padding:0"><label class="lbl grow">Time on each slide</label><span class="value" id="speedVal"></span></div>
+      <p class="hint" style="margin:0">How long each slide stays up before the next one.</p>
+      <input type="range" id="speed" min="1" max="10" step="1">
+      <div class="scale"><span>Longer</span><span>7 = normal</span><span>Shorter</span></div>
+    </div>
+    <div class="row" style="display:block">
+      <div class="row" style="padding:0"><label class="lbl grow">Swipe animation speed</label><span class="value" id="tspeedVal"></span></div>
+      <p class="hint" style="margin:0">How quickly the picture swipes over to the next slide: the movement itself, not how long a slide stays up. Live games too.</p>
+      <input type="range" id="tspeed" min="1" max="10" step="1">
+      <div class="scale"><span>Slow glide</span><span>7 = normal</span><span>Quick snap</span></div>
+    </div>
+    <div class="row" style="display:block">
+      <div class="row" style="padding:0"><label class="lbl grow">Time on each live game</label><span class="value" id="lspeedVal"></span></div>
+      <p class="hint" style="margin:0">When several games are on, how long each one stays up before switching.</p>
+      <input type="range" id="lspeed" min="5" max="60" step="5">
+      <div class="scale"><span>5 s</span><span>10 s = normal</span><span>60 s</span></div>
+    </div>
+    <div class="row" style="display:block">
+      <div class="row" style="padding:0"><label class="lbl grow">How long final scores stay up</label><span class="value" id="finalVal"></span></div>
+      <p class="hint" style="margin:0">After a game ends, its final score stays in the rotation this long.</p>
+      <input type="range" id="finalMin" min="1" max="60" step="1">
+      <div class="scale"><span>1 min</span><span>15 min = normal</span><span>60 min</span></div>
+    </div>
+    <div class="row" style="display:block">
+      <label class="lbl" style="margin-bottom:8px">Transitions</label>
+      <div class="seg" id="transition">
+        <button data-v="push">Slide &amp; wipe</button>
+        <button data-v="fade">Fade</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>TV delay</h2>
+    <p class="hint">Holds back everything during a live game (scores, clock, plays) so the board doesn't
+      spoil what's about to happen on your TV. Each sport's broadcast runs at its own delay. Start at 0;
+      if the board is ahead of the TV, add seconds for that sport.</p>
+    <div id="delays"></div>
+  </section>
+
+  <section>
+    <h2>Photos</h2>
+    <p class="hint">Put a photo on the board for a while (1 minute to 24 hours), mixed into the slides or on its own;
+      then it's permanently wiped from the board. The photo page is simple on purpose: open it on a phone and use <b>Share → Add to Home Screen</b> to keep it like an app.</p>
+    <p class="hint">Its address, <b id="photoIpAddr">http://(board address):8080</b>, opens only the photo page, never these
+      settings, so it's safe to give to guests. It works on every phone and computer on your home WiFi.</p>
+    <a class="btn primary" id="photoLink" href="/photos" style="text-decoration:none">Open the photo page</a>
+  </section>
+
+  <section>
+    <h2>Watch a team today</h2>
+    <p class="hint">Follow any teams just for today: their games show on the board like a favorite, then they drop off by
+      themselves overnight (4 AM). Add as many as you like.</p>
+    <div id="watchList"></div>
+    <div class="times" style="grid-template-columns:1fr 2fr"><select id="watchLeague"></select><select id="watchTeam"></select></div>
+    <button class="btn primary full" id="watchGo" style="margin-top:10px">+ Watch today</button>
+  </section>
+
+  <section>
+    <h2>Birthdays &amp; anniversaries</h2>
+    <p class="hint">Shown on the board, with fireworks, all day on the date every year.</p>
+    <div id="events"></div>
+    <div class="addform">
+      <input type="text" id="evName" placeholder="Name (e.g. Alex)" maxlength="40">
+      <div class="times" style="margin:0">
+        <div><small>Date</small><input type="date" id="evDate"></div>
+        <div><small>Type</small>
+          <select id="evType"><option value="birthday">🎂 Birthday</option><option value="anniversary">💍 Anniversary</option></select></div>
+      </div>
+      <button class="btn primary full" id="evAdd">Add</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>On / off schedule</h2>
+    <p class="hint">Turn the screen off automatically at night. The button on the board still works anytime.</p>
+    <div id="schedule"></div>
+  </section>
+
+  <section>
+    <h2>Fantasy football</h2>
+    <p class="hint">Show your fantasy matchups on the board, with alerts when your starters make big plays.</p>
+    <label class="lbl" style="margin-bottom:6px">Sleeper username</label>
+    <div class="times" style="grid-template-columns:1fr auto;gap:8px">
+      <input type="text" id="sleeperName" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="your Sleeper username">
+      <button class="btn primary" id="sleeperFind">Find my leagues</button>
+    </div>
+    <div id="sleeperLeagues" style="margin-top:8px"></div>
+    <label class="lbl" style="margin:14px 0 6px">ESPN leagues</label>
+    <div id="espnLeagues"></div>
+    <div class="times" style="grid-template-columns:1fr auto;gap:8px;margin-top:6px">
+      <input type="text" id="espnId" inputmode="numeric" placeholder="ESPN league ID">
+      <button class="btn primary" id="espnAdd">Add league</button>
+    </div>
+    <p class="hint" style="margin-top:6px">The league ID is the number after <b>leagueId=</b> in the web address of your league on espn.com.</p>
+    <details id="espnLoginBox" style="margin-bottom:12px">
+      <summary style="cursor:pointer;font-weight:600">Private league? Add your ESPN login codes</summary>
+      <p class="hint" style="margin-top:8px">First, add your league ID above. If your league name and teams show up, it's
+        public and you're done. Only if it says <b>private</b>, the board needs two codes from your ESPN login.
+        You need a <b>computer</b> (Chrome or Edge) for this, about 2 minutes, once a year at most.
+        They stay on the board and never show here again, and with them the board finds your team by itself.</p>
+      <ol class="hint steps-list">
+        <li>On the computer, open this settings page too (so you can copy and paste across).</li>
+        <li>In another tab, go to <b>espn.com/fantasy/football</b> and sign in.</li>
+        <li>Press <b>F12</b>. A panel of developer tools opens (side or bottom).</li>
+        <li>Along the top of that panel, click <b>Application</b> (not there? click <b>»</b> to find it).</li>
+        <li>On the left, under <b>Storage</b>, click the arrow next to <b>Cookies</b>, then <b>https://www.espn.com</b>.</li>
+        <li>In the <b>Filter</b> box above the table, type <b>espn_s2</b>.</li>
+        <li>Double-click the long text in the <b>Value</b> column, press <b>Ctrl+C</b>, and paste it into the
+          <b>espn_s2</b> box below.</li>
+        <li>Change the filter to <b>SWID</b> and copy its value the same way. It looks like <b>{1A2B3C4D-…}</b>:
+          include the curly brackets. Paste it into the <b>SWID</b> box.</li>
+        <li>Tap <b>Save codes</b>, press F12 to close the panel, and reload this page: your league shows
+          <b>My team (…)</b>.</li>
+      </ol>
+      <p class="hint">Value won't select? Click the row once: the full value shows at the bottom of the panel to copy.
+        If ESPN later stops accepting the codes (about once a year), the league will say so: just do these steps again.</p>
+      <p class="hint" id="espnLoginNow"></p>
+      <input type="password" id="espnS2" placeholder="espn_s2 (very long)" style="margin-bottom:6px">
+      <input type="text" id="espnSwid" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="SWID, like {1A2B3C4D-...}" style="margin-bottom:6px">
+      <div class="times" style="grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn primary" id="espnSave">Save codes</button>
+        <button class="btn" id="espnClear">Remove codes</button>
+      </div>
+    </details>
+    <!-- Yahoo: hidden until Yahoo approves the app (since 2026-07 Yahoo refuses fantasy data to unapproved apps) -->
+    <label class="lbl" style="margin:14px 0 6px">Yahoo leagues</label>
+    <p class="hint">In progress: waiting on Yahoo to approve the board.</p>
+    <div id="yahooAll" style="display:none">
+    <label class="lbl" style="margin:14px 0 6px">Yahoo leagues</label>
+    <div id="yahooBox"><p class="hint">Checking…</p></div>
+    <details id="yahooAppBox" style="margin-bottom:12px">
+      <summary style="cursor:pointer;font-weight:600">Yahoo app codes (one-time setup)</summary>
+      <p class="hint" style="margin-top:8px">Yahoo only lets the board in through a registered app. Create one at
+        developer.yahoo.com/apps/create (Fantasy Sports: Read, redirect URI https://localhost:8080), then paste its
+        Client ID and Client Secret here. They stay on the board and never show here again.</p>
+      <input type="password" id="yahooCid" placeholder="Client ID" style="margin-bottom:6px">
+      <input type="password" id="yahooSecret" placeholder="Client Secret" style="margin-bottom:6px">
+      <button class="btn primary" id="yahooAppSave">Save app codes</button>
+    </details>
+    </div>
+    <div id="fantasyOpts"></div>
+  </section>
+
+  <section>
+    <h2>Division rivals</h2>
+    <p class="hint">Also follow the other teams in your favorites' divisions: their last and next games show after the standings. Their live games can show too, kept low-key (scores only, no celebrations).</p>
+    <div id="rivalsBox"></div>
+  </section>
+
+  <section>
+    <h2>Show it off</h2>
+    <p class="hint">Play these on the board anytime. They also play by themselves: the startup show at power-up, the others after a Cubs win, a Blackhawks goal or a Bears win.</p>
+    <button class="btn primary full" data-show="startup">▶ Play the startup show</button>
+    <div class="times" style="grid-template-columns:1fr 1fr 1fr;margin-top:10px">
+      <button class="btn ghost" data-show="gocubsgo">Go Cubs Go</button>
+      <button class="btn ghost" data-show="hawksgoal">Blackhawks goal</button>
+      <button class="btn ghost" data-show="beardown">Bear Down</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Smart lights</h2>
+    <p class="hint">Flash the lights around the TV in team colors with the board's big moments (they match your TV delay),
+      then put them back how they were. Works with Philips Hue, Govee, WiZ, LIFX, Nanoleaf and WLED lights on the same WiFi.
+      Govee: first turn on <b>LAN Control</b> for each light in the Govee Home app.</p>
+    <label class="lbl" for="lightMode" style="margin-bottom:6px">What the lights do</label>
+    <select id="lightMode">
+      <option value="off">Nothing (off)</option><option value="wins">Flash on wins</option>
+      <option value="moments">Flash on scores and wins</option><option value="glow">Scores, wins + team color during games</option>
+    </select>
+    <button class="btn primary" id="lightScan" style="margin-top:8px">Find my lights</button>
+    <div id="lightList" style="margin-top:8px"></div>
+    <button class="btn ghost" id="lightTest" style="margin-top:8px">Test flash</button>
+  </section>
+
+  <section id="wifiSection">
+    <h2>WiFi</h2>
+    <p class="hint" id="wifiError" style="color:var(--bad);display:none"></p>
+    <p class="hint" id="wifiNow">Checking…</p>
+    <div id="keepBox"></div>
+    <button class="btn ghost full" id="scan">Find networks</button>
+    <div id="nets" style="margin-top:8px"></div>
+  </section>
+
+  <section>
+    <h2>Web address</h2>
+    <p class="hint">Pick an easy name for this page. Up to 10 letters, numbers or dashes.</p>
+    <div class="times" style="grid-template-columns:auto 1fr auto;align-items:center;gap:6px">
+      <span>http://</span><input type="text" id="webName" maxlength="10" autocapitalize="none" autocorrect="off" spellcheck="false"><span>.local</span>
+    </div>
+    <button class="btn primary full" id="webNameSave" style="margin-top:10px">Save name</button>
+    <p class="hint" id="webNameNow" style="margin-top:8px"></p>
+    <p class="hint" style="margin-top:8px"><b>Android phones:</b> names ending in .local often don't open on Android
+      (it may work one day and not the next). Use the board's number address instead, which always works:
+      <b id="ipAddr">http://(board address)</b>. Bookmark it.</p>
+  </section>
+
+  <footer id="foot"></footer>
+</main>
+
+<dialog id="pwDialog">
+  <h2 id="pwTitle">Connect</h2>
+  <p class="hint">The board will switch to this network. This page will disconnect; reconnect your phone to the
+    same network and open <b>scoreboard.local</b> again.</p>
+  <input type="password" id="pw" placeholder="WiFi password" autocomplete="off">
+  <div class="times">
+    <button class="btn ghost" id="pwCancel">Cancel</button>
+    <button class="btn primary" id="pwGo">Connect</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+// Folders: each section's title opens/closes it; which ones are open is remembered on this phone.
+(function folders() {
+  let open = [];
+  try { open = JSON.parse(localStorage.getItem("openFolders") || "[]"); } catch (e) {}
+  document.querySelectorAll("main > section").forEach(sec => {
+    const h2 = sec.querySelector(":scope > h2"), fold = document.createElement("div");
+    fold.className = "fold";
+    while (h2.nextSibling) fold.appendChild(h2.nextSibling);
+    sec.appendChild(fold);
+    const name = h2.textContent.trim();
+    if (open.includes(name)) sec.classList.add("open");
+    h2.onclick = () => {
+      if (dragJustEnded) return;
+      sec.classList.toggle("open");
+      const now = [...document.querySelectorAll("main > section.open > h2")].map(h => h.textContent.trim());
+      try { localStorage.setItem("openFolders", JSON.stringify(now)); } catch (e) {}
+    };
+    folderDrag(sec, h2);
+  });
+})();
+
+// Press and hold a folder's title, then drag it to a new place (owner, 2026-10-03). The order is
+// saved in the settings, so it's the same on every phone.
+let dragging = null, dragJustEnded = false;
+function folderTitles() { return [...document.querySelectorAll("main > section > h2")].map(h => h.textContent.trim()); }
+function applyFolderOrder(order) {
+  if (!Array.isArray(order) || !order.length) return;
+  const main = document.querySelector("main"), secs = [...document.querySelectorAll("main > section")];
+  const anchor = secs[secs.length - 1].nextSibling;
+  const rank = t => { const i = order.indexOf(t); return i < 0 ? 1000 + secs.findIndex(s => s.querySelector("h2").textContent.trim() === t) : i; };
+  secs.sort((a, b) => rank(a.querySelector("h2").textContent.trim()) - rank(b.querySelector("h2").textContent.trim()))
+      .forEach(s => main.insertBefore(s, anchor));
+}
+function folderDrag(sec, h2) {
+  let timer = null, startY = 0;
+  const cancel = () => { clearTimeout(timer); timer = null; };
+  h2.addEventListener("pointerdown", e => {
+    startY = e.clientY;
+    timer = setTimeout(() => {
+      dragging = sec; sec.classList.add("dragging"); document.body.classList.add("reordering");
+      if (navigator.vibrate) navigator.vibrate(25);
+    }, 450);
+  });
+  h2.addEventListener("pointermove", e => { if (timer && Math.abs(e.clientY - startY) > 10) cancel(); });
+  h2.addEventListener("pointerup", cancel);
+  h2.addEventListener("pointercancel", () => { if (!dragging) cancel(); });
+  h2.addEventListener("contextmenu", e => e.preventDefault());
+}
+function dragMove(y) {
+  if (!dragging) return;
+  const main = document.querySelector("main");
+  for (const s of document.querySelectorAll("main > section")) {
+    if (s === dragging) continue;
+    const r = s.getBoundingClientRect();
+    if (y > r.top && y < r.bottom) {
+      main.insertBefore(dragging, y < r.top + r.height / 2 ? s : s.nextSibling);
+      break;
+    }
+  }
+}
+function dragEnd() {
+  if (!dragging) return;
+  dragging.classList.remove("dragging"); document.body.classList.remove("reordering");
+  dragging = null; dragJustEnded = true; setTimeout(() => dragJustEnded = false, 300);
+  const order = folderTitles();
+  if (S) S.folder_order = order;
+  save({folder_order: order}, 0);
+  toast("Folder order saved ✓");
+}
+document.addEventListener("touchmove", e => { if (dragging) { e.preventDefault(); dragMove(e.touches[0].clientY); } }, {passive: false});
+document.addEventListener("pointermove", e => { if (dragging && e.pointerType === "mouse") dragMove(e.clientY); });
+document.addEventListener("touchend", dragEnd);
+document.addEventListener("pointerup", e => { if (e.pointerType === "mouse") dragEnd(); });
+let S = null, TEAMS = null, saveTimer = null, pending = {};
+
+function toast(msg, err) {
+  const t = $("#toast"); t.textContent = msg; t.className = err ? "show err" : "show";
+  clearTimeout(t._h); t._h = setTimeout(() => t.className = err ? "err" : "", 1600);
+}
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"},
+                                      body: JSON.stringify(body)} : {});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText);
+  return r.json();
+}
+function save(part, delay = 350) {
+  for (const [k, v] of Object.entries(part)) {   // merge one level deep (per-sport values)
+    const both = v && typeof v === "object" && !Array.isArray(v) && pending[k] && typeof pending[k] === "object";
+    pending[k] = both ? Object.assign({}, pending[k], v) : v;
+  }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const body = pending; pending = {};
+    try { S = await api("/api/settings", body); toast("Saved ✓"); }
+    catch (e) { toast("Couldn't save: " + e.message, true); }
+  }, delay);
+}
+
+document.querySelectorAll("[data-show]").forEach(b => b.onclick = async () => {
+  try { await api("/api/show", {what: b.dataset.show}); toast("Playing on the board ▶"); }
+  catch (e) { toast("Couldn't start it: " + e.message, true); }
+});
+
+function favList(key) {
+  const f = (S.favorites || {})[key];
+  return Array.isArray(f) ? f.map(String) : f ? [String(f)] : [];
+}
+const FFL_DEFAULTS = {sleeper_username: "", sleeper_leagues: [], espn_leagues: [], yahoo_leagues: [], matchup: "gamedays", live: true, live_every: 0, live_seconds: 0, alerts: true,
+                      alert_min: 6, opp_alerts: false, result: true, champion: true};
+function ffl() { return Object.assign({}, FFL_DEFAULTS, S.fantasy || {}); }
+function saveFfl(part) { S.fantasy = Object.assign(ffl(), part); save({fantasy: part}, 0); }
+async function findSleeper(quiet) {
+  const name = $("#sleeperName").value.trim(), box = $("#sleeperLeagues");
+  if (!name) { box.innerHTML = ""; return; }
+  box.innerHTML = `<p class="hint">Looking up ${name}…</p>`;
+  try {
+    const d = await api("/api/fantasy/sleeper?username=" + encodeURIComponent(name));
+    if (ffl().sleeper_username !== name) saveFfl({sleeper_username: name});
+    if (!d.leagues.length) { box.innerHTML = `<p class="hint">No NFL leagues this season for ${d.user}.</p>`; return; }
+    const chosen = ffl().sleeper_leagues;
+    box.innerHTML = `<p class="hint" style="margin:0 0 4px">Leagues to show (${d.user}):</p>`;
+    for (const lg of d.leagues) {
+      const row = document.createElement("div"); row.className = "row"; row.style.padding = "4px 0";
+      row.innerHTML = `<span class="grow"></span><label class="switch"><input type="checkbox"><span></span></label>`;
+      row.querySelector(".grow").textContent = lg.name;
+      const cb = row.querySelector("input");
+      cb.checked = !chosen.length || chosen.includes(lg.league_id);
+      cb.onchange = () => {
+        const ids = [...box.querySelectorAll("input")].map((c, i) => c.checked ? d.leagues[i].league_id : null).filter(Boolean);
+        saveFfl({sleeper_leagues: ids.length === d.leagues.length ? [] : ids});
+      };
+      box.appendChild(row);
+    }
+  } catch (e) { box.innerHTML = ""; if (!quiet) toast(e.message, true); }
+}
+let espnHasLogin = false;
+function showEspnLogin() {
+  $("#espnLoginNow").textContent = espnHasLogin ? "✓ Your ESPN login codes are saved." : "No login codes saved yet.";
+  $("#espnClear").style.display = espnHasLogin ? "" : "none";
+}
+async function espnRow(lg) {
+  // One ESPN league: its name, which team is his, and a remove button
+  const row = document.createElement("div"); row.className = "row"; row.style.cssText = "padding:6px 0;flex-wrap:wrap;gap:8px";
+  row.innerHTML = `<span class="grow" style="min-width:40%"></span><select style="width:auto;max-width:60%"></select><button class="btn">Remove</button>`;
+  const name = row.querySelector(".grow"), sel = row.querySelector("select");
+  name.textContent = "League " + lg.id + "…";
+  sel.style.display = "none";
+  row.querySelector("button").onclick = () => {
+    saveFfl({espn_leagues: ffl().espn_leagues.filter(x => x.id !== lg.id)}); row.remove();
+  };
+  $("#espnLeagues").appendChild(row);
+  try {
+    const d = await api("/api/fantasy/espn?league=" + lg.id);
+    name.textContent = d.name;
+    const mine = d.teams.find(t => t.mine);
+    sel.innerHTML = (mine ? `<option value="">My team (${mine.name})</option>` : `<option value="">Pick your team…</option>`) +
+      d.teams.map(t => `<option value="${t.id}"></option>`).join("");
+    d.teams.forEach((t, i) => sel.options[i + 1].textContent = t.name);
+    sel.value = lg.team || "";
+    sel.style.display = "";
+    sel.onchange = () => saveFfl({espn_leagues: ffl().espn_leagues.map(x => x.id === lg.id ? {id: x.id, team: sel.value} : x)});
+  } catch (e) {
+    name.textContent = "League " + lg.id + ": " + e.message;
+    name.style.color = "var(--bad, #e66)";
+  }
+}
+function renderEspn() {
+  $("#espnLeagues").innerHTML = "";
+  ffl().espn_leagues.forEach(espnRow);
+  api("/api/fantasy/espn").then(d => { espnHasLogin = d.has_login; showEspnLogin(); }).catch(() => {});
+  $("#espnAdd").onclick = () => {
+    const id = $("#espnId").value.replace(/.*leagueId=/i, "").replace(/\D.*$/, "").trim();
+    if (!id) { toast("Type the league ID (the number after leagueId=)", true); return; }
+    if (ffl().espn_leagues.some(x => x.id === id)) { toast("That league is already added", true); return; }
+    const lg = {id, team: ""};
+    saveFfl({espn_leagues: ffl().espn_leagues.concat([lg])});
+    $("#espnId").value = "";
+    espnRow(lg);
+  };
+  $("#espnSave").onclick = async () => {
+    try {
+      const d = await api("/api/fantasy/espn/login", {s2: $("#espnS2").value, swid: $("#espnSwid").value});
+      espnHasLogin = d.has_login; $("#espnS2").value = $("#espnSwid").value = "";
+      showEspnLogin(); toast("ESPN login codes saved ✓"); renderEspn();
+    } catch (e) { toast(e.message, true); }
+  };
+  $("#espnClear").onclick = async () => {
+    try { await api("/api/fantasy/espn/login", {clear: true}); espnHasLogin = false; showEspnLogin(); toast("Removed"); renderEspn(); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+async function renderYahoo() {
+  const box = $("#yahooBox");
+  $("#yahooAppSave").onclick = async () => {
+    try {
+      await api("/api/fantasy/yahoo/app", {client_id: $("#yahooCid").value, client_secret: $("#yahooSecret").value});
+      $("#yahooCid").value = $("#yahooSecret").value = ""; $("#yahooAppBox").open = false;
+      toast("Yahoo app codes saved ✓"); renderYahoo();
+    } catch (e) { toast(e.message, true); }
+  };
+  let d;
+  try { d = await api("/api/fantasy/yahoo"); } catch (e) { box.innerHTML = `<p class="hint">${e.message}</p>`; return; }
+  if (!d.app) { box.innerHTML = `<p class="hint">Needs the one-time Yahoo app codes below first.</p>`; return; }
+  $("#yahooAppBox").querySelector("summary").textContent = "Yahoo app codes (saved ✓, change)";
+  if (!d.connected) {
+    box.innerHTML = `${d.error ? `<p class="hint">${d.error}</p>` : ""}
+      <p class="hint" style="margin:0 0 6px"><b>1.</b> Sign in to Yahoo and tap <b>Agree</b>. Yahoo then shows a code.</p>
+      <a class="btn primary" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin-bottom:10px">Sign in to Yahoo</a>
+      <p class="hint" style="margin:0 0 6px"><b>2.</b> Come back here and paste the code:</p>
+      <div class="times" style="grid-template-columns:1fr auto;gap:8px">
+        <input type="text" id="yahooCode" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="code from Yahoo">
+        <button class="btn primary" id="yahooConnect">Connect</button>
+      </div>`;
+    box.querySelector("a").href = d.auth_url;
+    $("#yahooConnect").onclick = async () => {
+      try { await api("/api/fantasy/yahoo/connect", {code: $("#yahooCode").value}); toast("Yahoo connected ✓"); renderYahoo(); }
+      catch (e) { toast(e.message, true); }
+    };
+    return;
+  }
+  box.innerHTML = "";
+  const teams = d.teams || [];
+  if (d.error) box.innerHTML = `<p class="hint">${d.error}</p>`;
+  else if (!teams.length) box.innerHTML = `<p class="hint">Connected, but no Yahoo NFL leagues this season.</p>`;
+  else box.innerHTML = `<p class="hint" style="margin:0 0 4px">Leagues to show:</p>`;
+  const chosen = ffl().yahoo_leagues;
+  for (const t of teams) {
+    const row = document.createElement("div"); row.className = "row"; row.style.padding = "4px 0";
+    row.innerHTML = `<span class="grow"></span><label class="switch"><input type="checkbox" class="yl"><span></span></label>`;
+    row.querySelector(".grow").textContent = `${t.league} (${t.team})`;
+    const cb = row.querySelector("input");
+    cb.checked = !chosen.length || chosen.includes(t.league_key);
+    cb.onchange = () => {
+      const keys = [...box.querySelectorAll(".yl")].map((c, i) => c.checked ? teams[i].league_key : null).filter(Boolean);
+      saveFfl({yahoo_leagues: keys.length === teams.length ? [] : keys});
+    };
+    box.appendChild(row);
+  }
+  const off = document.createElement("button"); off.className = "btn"; off.textContent = "Disconnect Yahoo";
+  off.style.marginTop = "6px";
+  off.onclick = async () => { await api("/api/fantasy/yahoo/disconnect", {}); toast("Disconnected"); renderYahoo(); };
+  box.appendChild(off);
+}
+function lightsOpts() { return Object.assign({mode: "moments", devices: []}, S.lights || {}); }
+function renderLightList(found) {
+  // Chosen lights, plus anything the last scan found; a switch for each, Pair where needed
+  const box = $("#lightList"), chosen = lightsOpts().devices;
+  const all = chosen.slice();
+  for (const d of found || []) if (!all.some(c => c.id === d.id)) all.push(d);
+  box.innerHTML = all.length ? "" : (found ? `<p class="hint">No lights found. Make sure they're on and on the same WiFi as the board
+    (Govee: LAN Control on in the Govee Home app).</p>` : "");
+  for (const d of all) {
+    const row = document.createElement("div"); row.className = "row"; row.style.padding = "4px 0";
+    if (d.pair) {
+      row.innerHTML = `<span class="grow"></span><button class="btn primary">Pair</button>`;
+      row.querySelector(".grow").textContent = d.name;
+      row.querySelector("button").onclick = async () => {
+        try { await api("/api/lights/pair", {type: d.type, ip: d.ip}); toast("Paired ✓ Finding its lights…"); $("#lightScan").click(); }
+        catch (e) { toast(e.message, true); }
+      };
+    } else {
+      row.innerHTML = `<span class="grow"></span><label class="switch"><input type="checkbox"><span></span></label>`;
+      row.querySelector(".grow").textContent = d.name;
+      const cb = row.querySelector("input"); cb.checked = chosen.some(c => c.id === d.id);
+      cb.onchange = () => {
+        const devs = lightsOpts().devices.filter(c => c.id !== d.id);
+        if (cb.checked) devs.push({id: d.id, type: d.type, ip: d.ip, name: d.name, light: d.light || "", bridge: d.bridge || ""});
+        S.lights = Object.assign(lightsOpts(), {devices: devs}); save({lights: {devices: devs}}, 0);
+      };
+    }
+    box.appendChild(row);
+  }
+}
+function renderLights() {
+  const o = lightsOpts();
+  const m = $("#lightMode"); m.value = o.mode;
+  m.onchange = () => { S.lights = Object.assign(lightsOpts(), {mode: m.value}); save({lights: {mode: m.value}}, 0); };
+  renderLightList(null);
+  $("#lightScan").onclick = async () => {
+    const b = $("#lightScan"); b.disabled = true; b.textContent = "Looking…";
+    try { renderLightList((await api("/api/lights/scan")).found); }
+    catch (e) { toast(e.message, true); }
+    b.disabled = false; b.textContent = "Find my lights";
+  };
+  $("#lightTest").onclick = async () => {
+    try { await api("/api/lights/test", {}); toast("Flashing Bears colors for 5 seconds"); }
+    catch (e) { toast(e.message, true); }
+  };
+}
+function renderFantasy() {
+  const o = ffl();
+  renderEspn();
+  if ($("#yahooAll").style.display !== "none") renderYahoo();
+  $("#sleeperName").value = o.sleeper_username;
+  $("#sleeperFind").onclick = () => findSleeper(false);
+  if (o.sleeper_username) findSleeper(true);
+  const box = $("#fantasyOpts"); box.innerHTML = "";
+  const toggle = (key, label) => {
+    const row = document.createElement("div"); row.className = "row"; row.style.padding = "6px 0";
+    row.innerHTML = `<span class="grow">${label}</span><label class="switch"><input type="checkbox"><span></span></label>`;
+    const cb = row.querySelector("input"); cb.checked = !!o[key];
+    cb.onchange = () => saveFfl({[key]: cb.checked});
+    box.appendChild(row);
+  };
+  const sel = document.createElement("div"); sel.className = "row"; sel.style.padding = "6px 0";
+  sel.innerHTML = `<span class="grow">Matchup slides</span><select style="width:auto">
+      <option value="gamedays">Game days</option><option value="always">All week</option><option value="off">Off</option></select>`;
+  const s = sel.querySelector("select"); s.value = o.matchup; s.onchange = () => saveFfl({matchup: s.value});
+  box.appendChild(sel);
+  toggle("live", "Show my matchup during live games");
+  const every = document.createElement("div"); every.className = "row"; every.style.padding = "6px 0";
+  every.innerHTML = `<span class="grow">…how often</span><input type="number" min="0" max="180" step="1" style="width:80px"> <span>min</span>`;
+  const ev = every.querySelector("input"); ev.value = o.live_every || 0;
+  ev.onchange = () => saveFfl({live_every: +ev.value});
+  box.appendChild(every);
+  const dur = document.createElement("div"); dur.className = "row"; dur.style.padding = "6px 0";
+  dur.innerHTML = `<span class="grow">…for how long each time</span><input type="number" min="0" max="300" step="5" style="width:80px"> <span>sec</span>`;
+  const du = dur.querySelector("input"); du.value = o.live_seconds || 0;
+  du.onchange = () => saveFfl({live_seconds: +du.value});
+  box.appendChild(dur);
+  const fh = document.createElement("p"); fh.className = "hint"; fh.style.margin = "4px 0 0";
+  fh.textContent = "Only while a game is on. 0 minutes = every time through; 0 seconds = same as a live game.";
+  box.appendChild(fh);
+  toggle("alerts", "Alert when my starters make big plays");
+  const min = document.createElement("div"); min.className = "row"; min.style.padding = "6px 0";
+  min.innerHTML = `<span class="grow">…plays worth at least</span><input type="number" min="1" max="50" step="1" style="width:80px"> <span>pts</span>`;
+  const mi = min.querySelector("input"); mi.value = o.alert_min; mi.onchange = () => saveFfl({alert_min: +mi.value});
+  box.appendChild(min);
+  toggle("opp_alerts", "Also my opponents' big plays");
+  toggle("result", "Show each week's result");
+  toggle("champion", "League Champion celebration (a week)");
+}
+function renderWebName() {
+  const inp = $("#webName"), now = $("#webNameNow");
+  const show = () => {
+    const n = S.web_name || "scoreboard";
+    inp.value = n;
+    now.textContent = n === "scoreboard" ? "This page is at http://scoreboard.local"
+      : `This page is at http://${n}.local (http://scoreboard.local still works too).`;
+  };
+  show();
+  $("#webNameSave").onclick = async () => {
+    const want = inp.value.trim().toLowerCase();
+    if (!/^[a-z][a-z0-9-]{1,9}$/.test(want) || want.endsWith("-")) {
+      toast("Use 2-10 letters, numbers or dashes, starting with a letter", true); return;
+    }
+    try {
+      S = await api("/api/settings", {web_name: want}); show();
+      toast(`Saved ✓ Give it a few seconds, then try http://${want}.local`);
+    } catch (e) { toast("Couldn't save: " + e.message, true); }
+  };
+}
+function renderWatch() {
+  const box = $("#rivalsBox"); box.innerHTML = "";
+  const opt = (name, key, dflt) => {
+    const v = S[name];
+    return v && typeof v === "object" ? (key in v ? !!v[key] : dflt) : (v === undefined ? dflt : !!v);
+  };
+  for (const [key, lgInfo] of Object.entries(TEAMS)) {
+    const row = document.createElement("div"); row.className = "row"; row.style.display = "block";
+    row.innerHTML = `<label class="lbl" style="margin-bottom:6px">${lgInfo.name}</label>
+      <div class="row" style="padding:2px 0"><span class="grow">Rivals' last &amp; next games</span>
+        <label class="switch"><input type="checkbox" class="games"><span></span></label></div>
+      <div class="row" style="padding:2px 0"><span class="grow">Rivals' live games</span>
+        <label class="switch"><input type="checkbox" class="live"><span></span></label></div>`;
+    const g = row.querySelector(".games"), l = row.querySelector(".live");
+    g.checked = opt("show_rivals", key, true);
+    l.checked = opt("rival_live", key, false);
+    g.onchange = () => save({show_rivals: {[key]: g.checked}}, 0);
+    l.onchange = () => save({rival_live: {[key]: l.checked}}, 0);
+    box.appendChild(row);
+  }
+  const lg = $("#watchLeague"), tm = $("#watchTeam");
+  lg.innerHTML = Object.entries(TEAMS).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("");
+  const fill = () => {
+    tm.innerHTML = (TEAMS[lg.value] || {teams: []}).teams.map(t => `<option value="${t.id}">${t.name}</option>`).join("");
+  };
+  // Teams watched today (several allowed), each with its own Stop
+  const raw = S.watch_today, rows = (Array.isArray(raw) ? raw : raw ? [raw] : []).filter(w => new Date(w.until) > new Date());
+  const list = $("#watchList"); list.innerHTML = "";
+  if (!rows.length) list.innerHTML = `<p class="hint" style="color:var(--text)">Not watching any extra teams.</p>`;
+  for (const w of rows) {
+    const team = (TEAMS[w.league] || {teams: []}).teams.find(t => t.id === w.team);
+    const row = document.createElement("div"); row.className = "row"; row.style.padding = "6px 0";
+    row.innerHTML = `${team ? `<img class="team-logo" src="${team.logo}" alt="">` : ""}<span class="grow"></span><button class="btn ghost">Stop</button>`;
+    row.querySelector(".grow").textContent = (team ? team.name : "Team") + " · " + ((TEAMS[w.league] || {}).name || w.league);
+    row.querySelector("button").onclick = async () => {
+      try { S = await api("/api/settings", {watch_today: {remove: {league: w.league, team: w.team}}}); renderWatch(); toast("Stopped ✓"); }
+      catch (e) { toast("Couldn't save: " + e.message, true); }
+    };
+    list.appendChild(row);
+  }
+  fill();
+  lg.onchange = fill;
+  $("#watchGo").onclick = async () => {
+    try { S = await api("/api/settings", {watch_today: {add: {league: lg.value, team: tm.value}}}); renderWatch(); toast("Watching today ✓"); }
+    catch (e) { toast("Couldn't save: " + e.message, true); }
+  };
+}
+function renderFavorites() {
+  const box = $("#favorites"); box.innerHTML = "";
+  for (const [key, lg] of Object.entries(TEAMS)) {
+    const ids = favList(key);
+    const block = document.createElement("div"); block.className = "row"; block.style.display = "block";
+    block.innerHTML = `<label class="lbl" style="margin-bottom:6px">${lg.name}</label><div class="list"></div><select></select>`;
+    const list = block.querySelector(".list"), sel = block.querySelector("select");
+    const setIds = next => { S.favorites[key] = next; renderFavorites(); save({favorites: {[key]: next}}, 0); };
+    ids.forEach((id, i) => {
+      const t = lg.teams.find(x => x.id === id) || {name: "Team " + id, logo: ""};
+      const row = document.createElement("div"); row.className = "event";
+      row.innerHTML = `<img class="team-logo" alt=""><div class="grow"><b></b></div>
+        ${i > 0 ? '<button class="del up" aria-label="Move up" style="color:var(--dim)">▲</button>' : ""}
+        <button class="del rm" aria-label="Remove">✕</button>`;
+      row.querySelector("img").src = t.logo || ""; row.querySelector("b").textContent = t.name;
+      row.querySelector(".rm").onclick = () => setIds(ids.filter(x => x !== id));
+      const up = row.querySelector(".up");
+      if (up) up.onclick = () => { const n = [...ids]; [n[i - 1], n[i]] = [n[i], n[i - 1]]; setIds(n); };
+      list.appendChild(row);
+    });
+    if (!ids.length) list.innerHTML = `<div class="hint" style="margin:4px 0 10px">Not following any ${lg.name} team.</div>`;
+    const left = lg.teams.filter(t => !ids.includes(t.id));
+    sel.innerHTML = `<option value="">＋ Add a ${lg.name} team…</option>` +
+      left.map(t => `<option value="${t.id}">${t.name}</option>`).join("");
+    if (!lg.teams.length) sel.innerHTML = `<option>Team list loading on the board…</option>`;
+    sel.style.marginTop = ids.length ? "10px" : "0";
+    sel.onchange = () => { if (sel.value) setIds([...ids, sel.value]); };
+    box.appendChild(block);
+  }
+}
+
+function renderDisplay() {
+  const b = $("#brightness"), sp = $("#speed");
+  b.value = S.brightness; $("#brightnessVal").textContent = S.brightness + "%";
+  b.oninput = () => { $("#brightnessVal").textContent = b.value + "%"; save({brightness: +b.value}, 250); };
+  sp.value = S.speed || 7; $("#speedVal").textContent = sp.value;
+  sp.oninput = () => { $("#speedVal").textContent = sp.value; save({speed: +sp.value}); };
+  const ts = $("#tspeed");
+  ts.value = S.transition_speed || 7; $("#tspeedVal").textContent = ts.value;
+  ts.oninput = () => { $("#tspeedVal").textContent = ts.value; save({transition_speed: +ts.value}); };
+  const ls = $("#lspeed");
+  ls.value = S.live_game_seconds || 10; $("#lspeedVal").textContent = ls.value + " s";
+  ls.oninput = () => { $("#lspeedVal").textContent = ls.value + " s"; save({live_game_seconds: +ls.value}); };
+  const fm = $("#finalMin");
+  fm.value = S.final_minutes || 15; $("#finalVal").textContent = fm.value + " min";
+  fm.oninput = () => { $("#finalVal").textContent = fm.value + " min"; save({final_minutes: +fm.value}); };
+  for (const btn of document.querySelectorAll("#transition button")) {
+    btn.classList.toggle("on", btn.dataset.v === (S.transition || "push"));
+    btn.onclick = () => { S.transition = btn.dataset.v; renderDisplay(); save({transition: btn.dataset.v}, 0); };
+  }
+  renderDelays();
+}
+
+function renderDelays() {
+  const box = $("#delays"); box.innerHTML = "";
+  const cur = S.delay_seconds;
+  const get = key => typeof cur === "object" && cur ? (cur[key] || 0) : (+cur || 0);
+  for (const [key, lg] of Object.entries(TEAMS)) {
+    let v = get(key);
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<label class="lbl grow">${lg.name}</label>
+      <div class="stepper"><button>−</button><div class="num">${v}</div><button>+</button>
+      <span class="hint" style="margin:0">sec</span></div>`;
+    const [minus, plus] = row.querySelectorAll("button"), num = row.querySelector(".num");
+    const step = n => { v = Math.max(0, Math.min(300, v + n)); num.textContent = v;
+      if (typeof S.delay_seconds !== "object" || !S.delay_seconds) S.delay_seconds = {};
+      S.delay_seconds[key] = v; save({delay_seconds: {[key]: v}}, 600); };
+    minus.onclick = () => step(-5); plus.onclick = () => step(5);
+    box.appendChild(row);
+  }
+}
+
+function renderSchedule() {
+  const box = $("#schedule"); box.innerHTML = "";
+  for (const [part, label] of [["weekday", "Weekdays (Mon–Fri)"], ["weekend", "Weekends (Sat–Sun)"]]) {
+    const s = S.schedule[part];
+    const div = document.createElement("div"); div.className = "row"; div.style.display = "block";
+    div.innerHTML = `<div class="row" style="padding:0"><label class="lbl grow">${label}</label>
+        <label class="switch"><input type="checkbox"><span></span></label></div>
+      <div class="times"><div><small>Screen on</small><input type="time" class="on"></div>
+        <div><small>Screen off</small><input type="time" class="off"></div></div>`;
+    const en = div.querySelector("input[type=checkbox]"), times = div.querySelector(".times");
+    const on = div.querySelector(".on"), off = div.querySelector(".off");
+    en.checked = s.enabled; on.value = s.on; off.value = s.off; times.classList.toggle("off", !s.enabled);
+    const push = () => { times.classList.toggle("off", !en.checked);
+      save({schedule: {[part]: {enabled: en.checked, on: on.value, off: off.value}}}, 0); };
+    en.onchange = push; on.onchange = push; off.onchange = push;
+    box.appendChild(div);
+  }
+  const stay = document.createElement("div"); stay.className = "row";
+  stay.innerHTML = `<span class="grow">Stay on while a favorite is playing</span>
+    <label class="switch"><input type="checkbox"><span></span></label>`;
+  const sc = stay.querySelector("input");
+  sc.checked = S.schedule.stay_on_live !== false;
+  sc.onchange = () => save({schedule: {stay_on_live: sc.checked}}, 0);
+  box.appendChild(stay);
+}
+
+function renderEvents() {
+  const box = $("#events"); box.innerHTML = "";
+  if (!S.events.length) { box.innerHTML = `<div class="empty">Nothing added yet.</div>`; return; }
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  [...S.events].sort((a, b) => a.date.localeCompare(b.date)).forEach(ev => {
+    const [m, d] = ev.date.split("-").map(Number);
+    const row = document.createElement("div"); row.className = "event";
+    row.innerHTML = `<div class="icon">${ev.type === "anniversary" ? "💍" : "🎂"}</div>
+      <div class="grow"><b></b><div class="hint" style="margin:0">${months[m - 1]} ${d} · ${ev.type}</div></div>
+      <button class="del" aria-label="Remove">✕</button>`;
+    row.querySelector("b").textContent = ev.name;
+    row.querySelector(".del").onclick = () => {
+      // Match by contents, not by object: after a save the page holds fresh copies from the board
+      // (comparing objects is why a removed birthday could stay on the list)
+      S.events = S.events.filter(x => !(x.name === ev.name && x.date === ev.date && x.type === ev.type));
+      renderEvents(); save({events: S.events}, 0); };
+    box.appendChild(row);
+  });
+}
+$("#evAdd").onclick = () => {
+  const name = $("#evName").value.trim(), date = $("#evDate").value;
+  if (!name || !date) { toast("Add a name and a date", true); return; }
+  S.events.push({name, date: date.slice(5), type: $("#evType").value});
+  $("#evName").value = ""; $("#evDate").value = "";
+  renderEvents(); save({events: S.events}, 0);
+};
+
+function bars(signal) {
+  const n = signal > 75 ? 4 : signal > 50 ? 3 : signal > 25 ? 2 : 1;
+  return `<span class="bars">${[6, 9, 12, 16].map((h, i) => `<i class="${i < n ? "on" : ""}" style="height:${h}px"></i>`).join("")}</span>`;
+}
+let chosen = null, SAVED = [];
+async function connectSaved(ssid) {
+  try { await api("/api/wifi/connect", {ssid, password: ""});
+        $("#wifiNow").textContent = "Reconnecting to " + ssid + "… This page will disconnect; switch your phone back to your home WiFi."; }
+  catch (e) { toast(e.message, true); }
+}
+$("#scan").onclick = async () => {
+  const btn = $("#scan"); btn.disabled = true; btn.textContent = "Searching…";
+  try {
+    const nets = await api("/api/wifi/scan");
+    const box = $("#nets"); box.innerHTML = nets.length ? "" : `<div class="empty">No networks found.</div>`;
+    nets.forEach(n => {
+      const row = document.createElement("div"); row.className = "net";
+      const isSaved = SAVED.includes(n.ssid);
+      row.innerHTML = `${bars(n.signal)}<div class="grow"><b></b>${n.current ? ' <span class="hint">· connected</span>' : isSaved ? ' <span class="hint">· saved</span>' : ""}</div>${n.secure ? "🔒" : ""}`;
+      row.querySelector("b").textContent = n.ssid;
+      row.onclick = () => { if (n.current) return;
+        if (isSaved) { connectSaved(n.ssid); return; } chosen = n; $("#pwTitle").textContent = n.ssid;
+        $("#pw").value = ""; $("#pw").style.display = n.secure ? "" : "none"; $("#pwDialog").showModal(); };
+      box.appendChild(row);
+    });
+  } catch (e) { toast("Scan failed: " + e.message, true); }
+  btn.disabled = false; btn.textContent = "Find networks";
+};
+$("#pwCancel").onclick = () => $("#pwDialog").close();
+$("#pwGo").onclick = async () => {
+  try { await api("/api/wifi/connect", {ssid: chosen.ssid, password: $("#pw").value});
+        $("#pwDialog").close(); $("#wifiNow").textContent = "Switching to " + chosen.ssid + "…"; }
+  catch (e) { toast(e.message, true); }
+};
+
+function tempChip(c) {
+  const f = Math.round(c * 9 / 5 + 32);
+  const [word, color] = c < 70 ? ["Normal", "var(--good)"] : c < 80 ? ["Warm", "var(--gold)"] : ["Hot", "var(--bad)"];
+  return `<span class="chip" title="Processor temperature">🌡️ Board <b>${c}°C (${f}°F)</b> · <b style="color:${color}">${word}</b></span>`;
+}
+function ago(s) { return s < 90 ? "just now" : s < 5400 ? Math.round(s / 60) + " min ago" : Math.round(s / 3600) + " h ago"; }
+async function refreshStatus() {
+  try {
+    const st = await api("/api/status");
+    if (st.ip) {
+      const u = "http://" + st.ip + ":8080"; $("#photoIpAddr").textContent = u; $("#photoLink").href = u;
+      $("#ipAddr").textContent = "http://" + st.ip;
+    }
+    const w = st.wifi || {};
+    $("#wifiNow").innerHTML = w.ssid ? `Connected to <b></b> ${bars(w.signal)}` : "Not connected to WiFi.";
+    if (w.ssid) $("#wifiNow b").textContent = w.ssid;
+    const ages = Object.values(st.data_age_s || {});
+    $("#chips").innerHTML = `<span class="chip">📶 <b>${w.ssid ? "Online" : "Offline"}</b></span>
+      ${st.temp_c != null ? tempChip(st.temp_c) : ""}
+      ${ages.length ? `<span class="chip">🔄 Scores updated <b>${ago(Math.min(...ages))}</b></span>` : ""}`;
+    $("#foot").textContent = `Unit ${st.unit || "?"} · ${st.host} · up ${st.uptime_h} h`;
+    const net = st.net || {};
+    const setup = net.mode === "setup";
+    SAVED = st.saved || [];
+    const keep = $("#keepBox"); keep.innerHTML = "";
+    if (setup) SAVED.forEach(ssid => {
+      const b = document.createElement("button"); b.className = "btn primary full"; b.style.marginBottom = "10px";
+      b.textContent = "✓ Keep using " + ssid; b.onclick = () => connectSaved(ssid); keep.appendChild(b);
+    });
+    $("#setupBanner").style.display = setup ? "" : "none";
+    const err = $("#wifiError"); err.textContent = net.last_error || ""; err.style.display = net.last_error ? "" : "none";
+    if (setup && !refreshStatus.moved) {
+      refreshStatus.moved = true;
+      const sec = $("#wifiSection"); sec.parentNode.insertBefore(sec, document.querySelector("main section"));
+      sec.classList.add("open");
+      $("#wifiNow").textContent = "The board is in WiFi setup mode.";
+      $("#scan").click();
+    }
+  } catch (e) {}
+}
+
+(async () => {
+  try {
+    [S, TEAMS] = await Promise.all([api("/api/settings"), api("/api/teams")]);
+    applyFolderOrder(S.folder_order);
+    renderFavorites(); renderDisplay(); renderSchedule(); renderEvents(); renderWatch(); renderWebName(); renderFantasy(); renderLights();
+  } catch (e) { toast("Couldn't reach the board", true); }
+  refreshStatus(); setInterval(refreshStatus, 30000);
+})();
+</script>
+</body>
+</html>

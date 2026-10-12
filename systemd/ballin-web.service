@@ -1,0 +1,16 @@
+[Unit]
+Description=Ballin' Board settings web page
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/dacino/ballin-board
+ExecStart=/opt/ballin-board/venv/bin/python -m ballin.web 80
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=3
+# Keep the web page from ever competing with the display for CPU.
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+# Runtime data lives on the Pi, not in git
+cache/
+data/
+settings.json
+.claude/settings.local.json
+
+# Board backups (contain WiFi and email passwords): never in git
+backups/

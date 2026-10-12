@@ -1,0 +1,83 @@
+#!/bin/sh
+# One-time split of the SD card (runs in the initramfs, before root is mounted):
+#   root (p2) shrunk to 8 GiB, new ext4 data partition (p3, label "bbdata") in the rest.
+# Only runs when " bbsplit" is on the kernel command line and p3 doesn't exist yet.
+# Every step checks its result and stops before anything destructive if a check fails.
+# A log is copied to the boot partition as bb_split.log.
+PREREQ="resize_early"
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+
+grep -q ' bbsplit' /proc/cmdline || exit 0
+
+DISK=/dev/mmcblk0
+ROOT=${DISK}p2
+DATA=${DISK}p3
+LOG=/run/bb_split.log
+NEWSIZE=16777216            # 8 GiB in 512-byte sectors
+
+log() { echo "bb_split: $*" >> $LOG; echo "bb_split: $*" > /dev/kmsg 2>/dev/null; }
+
+save_log() {
+    mkdir -p /tmp/bootp
+    if mount -t vfat ${DISK}p1 /tmp/bootp 2>/dev/null; then
+        cp $LOG /tmp/bootp/bb_split.log
+        sync
+        umount /tmp/bootp
+    fi
+}
+
+finish() { log "$1"; save_log; exit 0; }
+
+for i in $(seq 1 40); do [ -b $ROOT ] && break; sleep 0.5; done
+[ -b $ROOT ] || finish "root partition not found; nothing changed"
+[ -b $DATA ] && finish "data partition already exists; nothing to do"
+
+START=$(cat /sys/block/mmcblk0/mmcblk0p2/start)
+TOTAL=$(cat /sys/block/mmcblk0/size)
+P3START=$((START + NEWSIZE))
+P3SIZE=$((TOTAL - P3START))
+log "disk $TOTAL sectors, root starts $START; data partition $P3START +$P3SIZE"
+[ "$P3SIZE" -gt 2097152 ] || finish "not enough free space for a data partition; nothing changed"
+
+log "step 1: checking root filesystem"
+e2fsck -f -y $ROOT >> $LOG 2>&1
+rc=$?
+[ $rc -le 1 ] || finish "e2fsck failed (rc=$rc); nothing changed"
+
+log "step 2: shrinking root filesystem to 7800M"
+# -f: the initramfs has no real clock (thinks it is 1970), so resize2fs would think the
+# check above is older than the last mount and refuse. The full check just passed.
+resize2fs -f $ROOT 7800M >> $LOG 2>&1 || finish "resize2fs failed; partition table unchanged"
+
+log "step 3: writing new partition table (root 8 GiB + data) in one step"
+# Same table as now, with p2 shrunk and p3 appended; the disk id (PARTUUIDs) is unchanged.
+sfdisk -d $DISK > /run/table.old 2>> $LOG || finish "could not read partition table; nothing changed"
+cp /run/table.old $LOG.table-before 2>/dev/null
+sed -e "/${DISK##*/}p2 :/s/size= *[0-9]*/size=$NEWSIZE/" /run/table.old > /run/table.new
+echo "${DATA} : start=$P3START, size=$P3SIZE, type=83" >> /run/table.new
+cat /run/table.new >> $LOG
+sfdisk --no-reread --no-tell-kernel $DISK < /run/table.new >> $LOG 2>&1 \
+    || finish "sfdisk failed; filesystem is smaller but still fits its (unchanged) partition"
+blockdev --rereadpt $DISK >> $LOG 2>&1
+for i in $(seq 1 20); do [ -b $DATA ] && break; sleep 0.5; done
+
+# Never grow or format unless the kernel really sees the new layout; otherwise resize2fs
+# would grow root back over the new data partition. The filesystem (7800M) fits the new
+# 8 GiB partition either way; the next boot reads the new table.
+KSIZE=$(cat /sys/block/mmcblk0/mmcblk0p2/size)
+[ "$KSIZE" = "$NEWSIZE" ] || finish "kernel still sees the old root size ($KSIZE); stopping safely - reboot to continue"
+
+log "step 5: growing root filesystem to fill 8 GiB"
+e2fsck -f -y $ROOT >> $LOG 2>&1
+resize2fs -f $ROOT >> $LOG 2>&1
+e2fsck -f -y $ROOT >> $LOG 2>&1
+
+if [ -b $DATA ]; then
+    log "step 6: formatting data partition"
+    # Full path: busybox also provides a "mke2fs" without -t.
+    /usr/sbin/mke2fs -t ext4 -F -L bbdata $DATA >> $LOG 2>&1 || log "mke2fs failed"
+else
+    log "data partition device didn't appear; format it after boot"
+fi
+finish "done"

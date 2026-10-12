@@ -1,0 +1,12 @@
+#!/bin/sh
+# initramfs hook: tools needed by scripts/local-premount/bb_split
+PREREQ=""
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0 ;; esac
+. /usr/share/initramfs-tools/hook-functions
+for tool in e2fsck resize2fs sfdisk mke2fs blockdev; do
+    copy_exec "$(command -v $tool || echo /usr/sbin/$tool)" /sbin
+done
+manual_add_modules vfat
+manual_add_modules nls_cp437
+manual_add_modules nls_ascii
